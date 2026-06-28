@@ -6,15 +6,15 @@
     <title>Advanced 3D Space & Map Explorer</title>
     <style>
         * {
-            margin: #000000;
-            padding: #000000;
+            margin: 0;
+            padding: 0;
             box-sizing: border-box;
         }
         body, html {
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #010103;
+            background-color: #020208;
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
             user-select: none;
         }
@@ -24,6 +24,49 @@
             height: 100%;
         }
         
+        /* Audio Initializer Overlay */
+        #audio-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #090d22 0%, #010103 100%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            transition: opacity 0.8s ease;
+        }
+        #audio-overlay h1 {
+            color: #00ffaa;
+            font-family: monospace;
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px #00ffaa;
+            font-size: 2rem;
+            text-align: center;
+            padding: 0 20px;
+        }
+        #start-btn {
+            background: linear-gradient(45deg, #00f0ff, #ff0099);
+            color: #ffffff;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.6);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        #start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 40px rgba(255, 0, 153, 0.8);
+        }
+
         /* Dropdown Control Panel at Top-Right Corner */
         #control-panel {
             position: absolute;
@@ -32,7 +75,7 @@
             z-index: 20;
             background: rgba(4, 6, 18, 0.85);
             border: 2px solid #00f0ff;
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.5);
             border-radius: 12px;
             padding: 12px;
             backdrop-filter: blur(10px);
@@ -50,7 +93,7 @@
         #planet-select {
             background: #090d22;
             color: #ffffff;
-            border: 1px solid rgba(0, 240, 255, 0.5);
+            border: 1px solid rgba(0, 240, 255, 0.8);
             padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
@@ -77,7 +120,7 @@
         .hud-panel {
             background: rgba(4, 6, 18, 0.9);
             border: 2px solid #00f0ff;
-            box-shadow: 0 0 30px rgba(0, 240, 255, 0.25);
+            box-shadow: 0 0 35px rgba(0, 240, 255, 0.4);
             padding: 25px;
             border-radius: 16px;
             backdrop-filter: blur(12px);
@@ -92,7 +135,7 @@
             right: 15px;
             background: transparent;
             border: transparent;
-            color: #ef4444;
+            color: #ff0055;
             font-size: 1.3rem;
             font-weight: bold;
             cursor: pointer;
@@ -102,12 +145,12 @@
             font-size: 1.8rem;
             letter-spacing: 2px;
             font-weight: 800;
-            text-shadow: 0 0 15px currentColor;
+            text-shadow: 0 0 20px currentColor;
             margin-bottom: 5px;
         }
         .classification {
             font-size: 0.75rem;
-            color: #64748b;
+            color: #94a3b8;
             text-transform: uppercase;
             letter-spacing: 2px;
             margin-bottom: 15px;
@@ -125,7 +168,7 @@
             margin-bottom: 12px;
             font-size: 0.9rem;
             line-height: 1.4;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             padding-bottom: 8px;
         }
         .data-label { color: #00ffaa; font-family: monospace; display: block; font-size: 0.8rem; text-transform: uppercase;}
@@ -138,8 +181,9 @@
             transform: translateX(-50%);
             color: #00f0ff;
             font-size: 0.8rem;
-            background: rgba(4, 6, 18, 0.8);
-            border: 1px solid rgba(0, 240, 255, 0.2);
+            background: rgba(4, 6, 18, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
             padding: 10px 20px;
             border-radius: 30px;
             pointer-events: none;
@@ -148,6 +192,11 @@
     </style>
 </head>
 <body>
+
+    <div id="audio-overlay">
+        <h1>ENTER THE GALAXY</h1>
+        <button id="start-btn">LAUNCH EXPLORER</button>
+    </div>
 
     <div id="control-panel">
         <label for="planet-select">Target Lock:</label>
@@ -197,6 +246,55 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <script>
+        // --- AUDIO ENGINE (GALAXY SOUND SYNTHESIZER) ---
+        let audioCtx;
+        function initGalaxySound() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Deep cosmic drone oscillator
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            
+            osc1.type = 'sawtooth';
+            osc1.frequency.setValueAtTime(55, audioCtx.currentTime); // Low A note
+            
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(55.5, audioCtx.currentTime); // Slightly detuned for chorusing
+            
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(120, audioCtx.currentTime);
+            filter.Q.setValueAtTime(5, audioCtx.currentTime);
+            
+            gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
+            
+            // Modulator for slow "space breathing" sound waves
+            const modulator = audioCtx.createOscillator();
+            const modGain = audioCtx.createGain();
+            modulator.frequency.setValueAtTime(0.08, audioCtx.currentTime); // very slow cycle
+            modGain.gain.setValueAtTime(40, audioCtx.currentTime);
+            
+            modulator.connect(modGain);
+            modGain.connect(filter.frequency);
+            
+            osc1.connect(filter);
+            osc2.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc1.start();
+            osc2.start();
+            modulator.start();
+        }
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            initGalaxySound();
+            const overlay = document.getElementById('audio-overlay');
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 800);
+        });
+
         // --- 1. SETUP ENGINE AND VIEW SYSTEM ---
         const canvas = document.querySelector('canvas.webgl');
         const scene = new THREE.Scene();
@@ -215,10 +313,10 @@
         controls.keyPanSpeed = 20.0;
 
         // --- 2. ADVANCED LIGHTING MATRIX ---
-        const ambientLight = new THREE.AmbientLight(0x555555);
+        const ambientLight = new THREE.AmbientLight(0x777777);
         scene.add(ambientLight);
 
-        const sunPointLight = new THREE.PointLight(0xffffff, 3.0, 600);
+        const sunPointLight = new THREE.PointLight(0xffffff, 4.5, 800);
         scene.add(sunPointLight);
 
         // --- 3. HIGH-END PROCEDURAL TEXTURE GENERATOR ---
@@ -231,14 +329,14 @@
             ctx.fillStyle = baseHexColor;
             ctx.fillRect(0, 0, canvasTex.width, canvasTex.height);
             
-            for (let i = 0; i < 20000; i++) {
+            for (let i = 0; i < 25000; i++) {
                 ctx.fillStyle = detailHexColor;
                 let x = Math.random() * canvasTex.width;
                 let y = Math.random() * canvasTex.height;
-                let r = Math.random() * (type === 'gas' ? 14 : 4);
+                let r = Math.random() * (type === 'gas' ? 18 : 6);
                 
                 if (type === 'gas') {
-                    ctx.fillRect(x, y, r * 4, r * 0.4);
+                    ctx.fillRect(x, y, r * 5, r * 0.5);
                 } else {
                     ctx.beginPath();
                     ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -250,22 +348,23 @@
             return texture;
         };
 
-        // --- 4. COSMIC DEEP SPACE STAR COILS ---
+        // --- 4. COSMIC DEEP SPACE STAR COILS (ATTRACTIVE NEON COLORS) ---
         const createNebulaCloud = () => {
-            const count = 65000;
+            const count = 85000;
             const geo = new THREE.BufferGeometry();
             const pos = new Float32Array(count * 3);
             const col = new Float32Array(count * 3);
             
-            const magenta = new THREE.Color('#ff0099');
-            const cyan = new THREE.Color('#00f0ff');
-            const violet = new THREE.Color('#6d28d9');
+            const neonMagenta = new THREE.Color('#ff00bb');
+            const neonCyan = new THREE.Color('#00f6ff');
+            const vividViolet = new THREE.Color('#8b5cf6');
+            const neonGreen = new THREE.Color('#00ff66');
 
             for(let i = 0; i < count; i++) {
                 const i3 = i * 3;
-                const r = Math.random() * 140;
-                const twist = r * 0.35;
-                const armAngle = ((i % 4) / 4) * Math.PI * 2;
+                const r = Math.random() * 150;
+                const twist = r * 0.4;
+                const armAngle = ((i % 5) / 5) * Math.PI * 2;
 
                 const rx = Math.pow(Math.random(), 4) * (Math.random() < 0.5 ? 1 : -1) * 0.5 * r;
                 const ry = Math.pow(Math.random(), 4) * (Math.random() < 0.5 ? 1 : -1) * 0.2 * r;
@@ -275,11 +374,13 @@
                 pos[i3+1] = ry - 2;
                 pos[i3+2] = Math.sin(armAngle + twist) * r + rz;
 
-                let blended = magenta.clone();
-                if (r < 45) {
-                    blended.lerp(cyan, r / 45);
+                let blended = neonMagenta.clone();
+                if (r < 35) {
+                    blended.lerp(neonCyan, r / 35);
+                } else if (r < 80) {
+                    blended.lerp(vividViolet, (r - 35) / 45);
                 } else {
-                    blended.lerp(violet, (r - 45) / 85);
+                    blended.lerp(neonGreen, (r - 80) / 70);
                 }
                 col[i3+0] = blended.r; col[i3+1] = blended.g; col[i3+2] = blended.b;
             }
@@ -287,36 +388,36 @@
             geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
             
             return new THREE.Points(geo, new THREE.PointsMaterial({
-                size: 0.035, sizeAttenuation: true, depthWrite: false,
+                size: 0.05, sizeAttenuation: true, depthWrite: false,
                 blending: THREE.AdditiveBlending, vertexColors: true
             }));
         };
         scene.add(createNebulaCloud());
 
-        // --- 5. DATA SYSTEM CONFIGURATION ---
+        // --- 5. DATA SYSTEM CONFIGURATION (SATURATED/INTENSE COLORS) ---
         const sphereGeo = new THREE.SphereGeometry(1, 64, 64);
 
-        // Core Glowing Sun
-        const sunTex = generateStellarTexture('solid', '#ffaa00', '#ff3300');
+        // Vibrant Core Burning Glowing Sun
+        const sunTex = generateStellarTexture('solid', '#ff3300', '#ffff00');
         const sunMesh = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ map: sunTex }));
         sunMesh.scale.set(6.5, 6.5, 6.5);
         scene.add(sunMesh);
         
         sunMesh.userData = {
             id: 'sun', name: "The Sun", type: "G-Type Star", speed: "0.00 km/s (Core Anchor)",
-            distance: "0.00M km", color: "#ffaa00",
-            desc: "The massive heart of our system. It anchors the orbits of all surrounding planets."
+            distance: "0.00M km", color: "#ff2200",
+            desc: "The massive neon heart of our system. It anchors the orbits of all surrounding planets."
         };
 
         const configDataset = [
-            { id: 'mercury', name: 'Mercury', radius: 0.45, distance: 13, speed: 0.022,  color: '#94a3b8', type: 'Terrestrial Planet', realDist: '57.9M km',  realSpeed: '47.4 km/s',  base: '#475569', detail: '#1e293b', style: 'solid' },
-            { id: 'venus',   name: 'Venus',   radius: 0.95, distance: 19, speed: 0.016,  color: '#eab308', type: 'Terrestrial Planet', realDist: '108.2M km', realSpeed: '35.0 km/s',  base: '#ca8a04', detail: '#78350f', style: 'gas' },
-            { id: 'earth',   name: 'Earth',   radius: 1.05, distance: 26, speed: 0.012,  color: '#3b82f6', type: 'Terrestrial Planet', realDist: '149.6M km', realSpeed: '29.8 km/s',  base: '#1d4ed8', detail: '#15803d', style: 'solid' },
-            { id: 'mars',    name: 'Mars',    radius: 0.65, distance: 33, speed: 0.009,  color: '#ef4444', type: 'Terrestrial Planet', realDist: '227.9M km', realSpeed: '24.1 km/s',  base: '#b91c1c', detail: '#7f1d1d', style: 'solid' },
-            { id: 'jupiter', name: 'Jupiter', radius: 2.40, distance: 44, speed: 0.006,  color: '#f97316', type: 'Gas Giant',          realDist: '778.5M km', realSpeed: '13.1 km/s',  base: '#c2410c', detail: '#fed7aa', style: 'gas' },
-            { id: 'saturn',  name: 'Saturn',  radius: 1.95, distance: 57, speed: 0.004,  color: '#fde047', type: 'Gas Giant',          realDist: '1.43B km',   realSpeed: '9.7 km/s',   base: '#eab308', detail: '#fef08a', style: 'gas', hasRings: true },
-            { id: 'uranus',  name: 'Uranus',  radius: 1.40, distance: 68, speed: 0.003,  color: '#22d3ee', type: 'Ice Giant',          realDist: '2.87B km',   realSpeed: '6.8 km/s',   base: '#0891b2', detail: '#ecfeff', style: 'gas' },
-            { id: 'neptune', name: 'Neptune', radius: 1.35, distance: 77, speed: 0.0022, color: '#6366f1', type: 'Ice Giant',          realDist: '4.50B km',   realSpeed: '5.4 km/s',   base: '#4338ca', detail: '#1e1b4b', style: 'gas' }
+            { id: 'mercury', name: 'Mercury', radius: 0.45, distance: 13, speed: 0.022,  color: '#00ffcc', type: 'Terrestrial Planet', realDist: '57.9M km',  realSpeed: '47.4 km/s',  base: '#008b8b', detail: '#00ffff', style: 'solid' },
+            { id: 'venus',   name: 'Venus',   radius: 0.95, distance: 19, speed: 0.016,  color: '#ffaa00', type: 'Terrestrial Planet', realDist: '108.2M km', realSpeed: '35.0 km/s',  base: '#e67e22', detail: '#ff0000', style: 'gas' },
+            { id: 'earth',   name: 'Earth',   radius: 1.05, distance: 26, speed: 0.012,  color: '#0066ff', type: 'Terrestrial Planet', realDist: '149.6M km', realSpeed: '29.8 km/s',  base: '#0044ff', detail: '#00ff66', style: 'solid' },
+            { id: 'mars',    name: 'Mars',    radius: 0.65, distance: 33, speed: 0.009,  color: '#ff0055', type: 'Terrestrial Planet', realDist: '227.9M km', realSpeed: '24.1 km/s',  base: '#ff0044', detail: '#330011', style: 'solid' },
+            { id: 'jupiter', name: 'Jupiter', radius: 2.40, distance: 44, speed: 0.006,  color: '#ff6600', type: 'Gas Giant',          realDist: '778.5M km', realSpeed: '13.1 km/s',  base: '#d35400', detail: '#fff000', style: 'gas' },
+            { id: 'saturn',  name: 'Saturn',  radius: 1.95, distance: 57, speed: 0.004,  color: '#ffff00', type: 'Gas Giant',          realDist: '1.43B km',   realSpeed: '9.7 km/s',   base: '#f1c40f', detail: '#ffffff', style: 'gas', hasRings: true },
+            { id: 'uranus',  name: 'Uranus',  radius: 1.40, distance: 68, speed: 0.003,  color: '#00ffff', type: 'Ice Giant',          realDist: '2.87B km',   realSpeed: '6.8 km/s',   base: '#00a8ff', detail: '#a55eea', style: 'gas' },
+            { id: 'neptune', name: 'Neptune', radius: 1.35, distance: 77, speed: 0.0022, color: '#70a1ff', type: 'Ice Giant',          realDist: '4.50B km',   realSpeed: '5.4 km/s',   base: '#3742fa', detail: '#050b1a', style: 'gas' }
         ];
 
         const planetaryRegistry = [];
@@ -324,43 +425,43 @@
 
         configDataset.forEach(cfg => {
             const texture = generateStellarTexture(cfg.style, cfg.base, cfg.detail);
-            const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.7, metalness: 0.1 });
+            const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.5, metalness: 0.2 });
             const mesh = new THREE.Mesh(sphereGeo, material);
             mesh.scale.set(cfg.radius, cfg.radius, cfg.radius);
             scene.add(mesh);
 
             mesh.userData = {
                 id: cfg.id, name: cfg.name, type: cfg.type, speed: cfg.realSpeed, distance: cfg.realDist, color: cfg.color,
-                desc: `A stunning ${cfg.type} running along an orbit located ${cfg.realDist} away from the central solar anchor.`
+                desc: `A stunning high-vibrancy ${cfg.type} running along an orbit located ${cfg.realDist} away from the central solar anchor.`
             };
 
             if (cfg.id === 'earth') earthReference = mesh;
 
             if (cfg.hasRings) {
-                const ringGeo = new THREE.RingGeometry(cfg.radius * 1.3, cfg.radius * 2.3, 64);
-                const ringMesh = new THREE.Mesh(ringGeo, new THREE.MeshStandardMaterial({ color: '#d97706', side: THREE.DoubleSide, transparent: true, opacity: 0.7 }));
+                const ringGeo = new THREE.RingGeometry(cfg.radius * 1.3, cfg.radius * 2.5, 64);
+                const ringMesh = new THREE.Mesh(ringGeo, new THREE.MeshStandardMaterial({ color: '#ffaa00', side: THREE.DoubleSide, transparent: true, opacity: 0.85 }));
                 ringMesh.rotation.x = Math.PI / 2.3;
                 mesh.add(ringMesh);
             }
 
-            // High-Performance Ambient Orbits
-            const trackGeo = new THREE.RingGeometry(cfg.distance - 0.05, cfg.distance + 0.05, 128);
-            const trackMesh = new THREE.Mesh(trackGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(cfg.color), side: THREE.DoubleSide, opacity: 0.15, transparent: true }));
+            // High-Performance Vibrantly Colored Ambient Orbits
+            const trackGeo = new THREE.RingGeometry(cfg.distance - 0.08, cfg.distance + 0.08, 128);
+            const trackMesh = new THREE.Mesh(trackGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(cfg.color), side: THREE.DoubleSide, opacity: 0.35, transparent: true }));
             trackMesh.rotation.x = Math.PI / 2;
             scene.add(trackMesh);
 
             planetaryRegistry.push({ mesh: mesh, distance: cfg.distance, speed: cfg.speed, angle: Math.random() * Math.PI * 2 });
         });
 
-        // The Luna Moon
-        const moonTex = generateStellarTexture('solid', '#64748b', '#334155');
-        const moonMesh = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ map: moonTex, roughness: 0.8 }));
+        // Vibrant Moon
+        const moonTex = generateStellarTexture('solid', '#a5b1c2', '#4b6584');
+        const moonMesh = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ map: moonTex, roughness: 0.6 }));
         moonMesh.scale.set(0.24, 0.24, 0.24);
         scene.add(moonMesh);
         
         moonMesh.userData = {
             id: 'moon', name: "The Moon", type: "Natural Satellite", speed: "1.02 km/s",
-            distance: "384,400 km from Earth", color: "#a1a1aa",
+            distance: "384,400 km from Earth", color: "#00ffaa",
             desc: "Earth's unique natural companion. It coordinates oceanic tidal fields and displays distinct craters under satellite maps."
         };
         let moonAngle = 0;
@@ -398,14 +499,13 @@
             document.getElementById('planet-select').value = 'system';
         };
 
-        // Deactivate Camera Autofocus whenever user interacts with Map Coordinates manually
-        window.addEventListener('mousedown', () => {
-            if (event.target.closest('#control-panel') || event.target.closest('#interface')) return;
+        window.addEventListener('mousedown', (event) => {
+            if (event.target.closest('#control-panel') || event.target.closest('#interface') || event.target.closest('#audio-overlay')) return;
             cameraGlideActive = false;
         });
 
         window.addEventListener('click', (event) => {
-            if (event.target.closest('#control-panel') || event.target.closest('#interface')) return;
+            if (event.target.closest('#control-panel') || event.target.closest('#interface') || event.target.closest('#audio-overlay')) return;
 
             mouseVector.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouseVector.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -450,7 +550,6 @@
                 p.mesh.rotation.y = time * 0.25;
             });
 
-            // Map Luna Coordinates around Earth
             if (earthReference) {
                 moonAngle += 0.025;
                 const radiusOffset = 1.9;
@@ -460,10 +559,8 @@
                 moonMesh.rotation.y = time * 0.05;
             }
 
-            // Smooth Interpolated Camera tracking logic
             if (cameraGlideActive) {
                 controls.target.lerp(cameraTargetPosition, 0.05);
-                
                 if (controls.target.distanceTo(cameraTargetPosition) < 0.1) {
                     cameraGlideActive = false;
                 }
